@@ -2,7 +2,18 @@
 
 /**
  * Updates the inline script hash in the CSP meta tag of index.html.
+ * This script is meant to be executed via Node.js on the command line only.
  */
+
+if (
+  typeof process === "undefined" ||
+  typeof require === "undefined" ||
+  typeof module === "undefined" ||
+  !process.versions ||
+  !process.versions.node
+) {
+  throw new Error("update-csp-sha.js must be executed with Node.js from the command line.");
+}
 
 const fs = require("fs");
 const path = require("path");
@@ -22,15 +33,19 @@ function main() {
   const hash = crypto.createHash("sha256").update(scriptContent, "utf8").digest("base64");
   const newDirective = `'sha256-${hash}'`;
 
-  const metaRegex = /(script-src[^;]*?)'sha256-[^']+'([^;]*;)/;
+const metaRegex = /(script-src[^;]*?)'sha256-[^']+'([^;]*;)/;
   if (!metaRegex.test(html)) {
     console.error("Unable to find existing sha256 hash in CSP meta tag.");
     process.exit(1);
   }
 
   const updated = html.replace(metaRegex, `$1${newDirective}$2`);
-  fs.writeFileSync(FILE, updated, "utf8");
-  console.log(`Updated CSP hash to ${newDirective}`);
+fs.writeFileSync(FILE, updated, "utf8");
+console.log(`Updated CSP hash to ${newDirective}`);
 }
 
-main();
+if (require.main === module) {
+  main();
+} else {
+  module.exports = main;
+}
