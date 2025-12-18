@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'sha256-nfrIbd9bh5E8cDLA06P9woVE6t/YhZ708zFHuerfBvA='; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'; connect-src 'self';" />
+        content="default-src 'self'; script-src 'self' 'sha256-3Cu5Eu+i4b1DqtTL1NJNBi+Sd8IyadWF3T85hC0qTSY='; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'; connect-src 'self';" />
   <title>Comparateur CSV (A vs B)</title>
   <style>
     :root {
@@ -575,6 +575,8 @@
       B: { headers: [], rows: [], filename: null },
       selectedColumnsA: new Set(),
       selectedColumnsB: new Set(),
+      selectedKeyA: null,
+      selectedKeyB: null,
       results: {
         inner: { headers: [], rows: [] },
         left:  { headers: [], rows: [] },
@@ -804,6 +806,55 @@
       });
     }
 
+    function getSelectedColumnsSet(side) {
+      return side === "A" ? state.selectedColumnsA : state.selectedColumnsB;
+    }
+
+    function getColumnsContainerId(side) {
+      return side === "A" ? "colsA" : "colsB";
+    }
+
+    function setColumnsSelectionToKeyOnly(side, key) {
+      const selectedSet = new Set();
+      if (key) selectedSet.add(key);
+      if (side === "A") {
+        state.selectedColumnsA = selectedSet;
+        state.selectedKeyA = key;
+      } else {
+        state.selectedColumnsB = selectedSet;
+        state.selectedKeyB = key;
+      }
+      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet);
+    }
+
+    function updateColumnsSelectionForKeyChange(side, newKey, previousKey) {
+      const selectedSet = getSelectedColumnsSet(side);
+      const onlyPreviousKeySelected =
+        selectedSet.size === 0 ||
+        (selectedSet.size === 1 && previousKey && selectedSet.has(previousKey));
+
+      if (onlyPreviousKeySelected) {
+        selectedSet.clear();
+        if (newKey) selectedSet.add(newKey);
+      } else if (newKey) {
+        selectedSet.add(newKey);
+      }
+
+      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet);
+    }
+
+    function handleKeySelectionChange(side) {
+      const select = document.getElementById("keySelect" + side);
+      if (!select) return;
+      const newKey = select.value;
+      const keyProp = side === "A" ? "selectedKeyA" : "selectedKeyB";
+      const previousKey = state[keyProp];
+      state[keyProp] = newKey;
+      updateColumnsSelectionForKeyChange(side, newKey, previousKey);
+      updateComputeButtonState();
+      triggerAutoCompute();
+    }
+
     function handleColumnsSelectionChange() {
       triggerAutoCompute();
     }
@@ -935,14 +986,8 @@
 
           renderPreview("preview" + side, parsed.header, parsed.rows);
           renderKeySelect("keySelect" + side, parsed.header);
-
-          if (side === "A") {
-            state.selectedColumnsA = new Set(parsed.header);
-            renderColumnsCheckboxes("colsA", parsed.header, state.selectedColumnsA);
-          } else {
-            state.selectedColumnsB = new Set(parsed.header);
-            renderColumnsCheckboxes("colsB", parsed.header, state.selectedColumnsB);
-          }
+          const selectedKey = document.getElementById("keySelect" + side).value;
+          setColumnsSelectionToKeyOnly(side, selectedKey);
 
           updateComputeButtonState();
           triggerAutoCompute();
@@ -1189,12 +1234,10 @@
       initTabs();
 
       document.getElementById("keySelectA").addEventListener("change", () => {
-        updateComputeButtonState();
-        triggerAutoCompute();
+        handleKeySelectionChange("A");
       });
       document.getElementById("keySelectB").addEventListener("change", () => {
-        updateComputeButtonState();
-        triggerAutoCompute();
+        handleKeySelectionChange("B");
       });
       document.getElementById("autoComputeToggle").addEventListener("change", (e) => {
         state.autoCompute = e.target.checked;
