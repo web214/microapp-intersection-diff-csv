@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta http-equiv="Content-Security-Policy"
-        content="default-src 'self'; script-src 'self' 'sha256-3Cu5Eu+i4b1DqtTL1NJNBi+Sd8IyadWF3T85hC0qTSY='; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'; connect-src 'self';" />
+        content="default-src 'self'; script-src 'self' 'sha256-z3rYXBCNiCvA9D5Z2tUa9wUPjkqli80vwyJVZpYXTm4='; style-src 'self' 'unsafe-inline'; img-src 'self'; object-src 'none'; base-uri 'none'; form-action 'self'; frame-ancestors 'self'; connect-src 'self';" />
   <title>Comparateur CSV (A vs B)</title>
   <style>
     :root {
@@ -133,6 +133,15 @@
     }
     .panel-options {
       grid-column: 1 / -1;
+    }
+    .panel-columns {
+      grid-column: 1 / -1;
+    }
+    .panel-hint {
+      font-size: 0.85rem;
+      color: var(--muted-text);
+      margin-top: -0.4rem;
+      margin-bottom: 0.9rem;
     }
     .hidden {
       display: none !important;
@@ -346,6 +355,50 @@
       margin-bottom: 0.15rem;
       cursor: pointer;
     }
+    .parse-controls {
+      display: grid;
+      gap: 0.8rem;
+      grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      margin-top: 1rem;
+      padding-top: 0.5rem;
+      border-top: 1px solid var(--secondary-border);
+    }
+    .parse-control h3 {
+      margin: 0 0 0.4rem;
+      font-size: 0.95rem;
+      color: var(--muted-text);
+    }
+    .parse-control button {
+      width: 100%;
+      justify-content: center;
+    }
+    .parse-warning {
+      font-size: 0.8rem;
+      color: var(--error-text);
+      min-height: 1.2rem;
+      margin-bottom: 0.2rem;
+    }
+    .parse-status {
+      margin-top: 0.4rem;
+      font-size: 0.8rem;
+      color: var(--muted-text);
+      min-height: 1.2rem;
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+    }
+    .parse-status.parsing::before {
+      content: "";
+      width: 0.65rem;
+      height: 0.65rem;
+      border-radius: 50%;
+      border: 2px solid var(--accent-indigo);
+      border-top-color: transparent;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
     table {
       width: 100%;
       border-collapse: collapse;
@@ -461,10 +514,6 @@
         <input id="fileInputA" type="file" accept=".csv,text/csv" style="display:none" />
       </div>
       <div id="fileInfoA" class="file-info"></div>
-      <div class="key-select">
-        <span>Clé de jointure A :</span>
-        <select id="keySelectA"></select>
-      </div>
       <div class="preview-title">Aperçu des 10 premières lignes :</div>
       <div style="max-height: 210px; overflow:auto;">
         <table id="previewA"></table>
@@ -480,13 +529,58 @@
         <input id="fileInputB" type="file" accept=".csv,text/csv" style="display:none" />
       </div>
       <div id="fileInfoB" class="file-info"></div>
-      <div class="key-select">
-        <span>Clé de jointure B :</span>
-        <select id="keySelectB"></select>
-      </div>
       <div class="preview-title">Aperçu des 10 premières lignes :</div>
       <div style="max-height: 210px; overflow:auto;">
         <table id="previewB"></table>
+      </div>
+    </div>
+
+    <div class="panel panel-columns">
+      <h2>Clés & Colonnes</h2>
+      <p class="panel-hint">Choisissez la clé et les colonnes à conserver avant de lancer la préparation complète.</p>
+      <div class="columns-select">
+        <div>
+          <div class="key-select">
+            <span>Clé de jointure A :</span>
+            <select id="keySelectA"></select>
+          </div>
+          <div class="columns-header">
+            <h3>Colonnes à garder (A)</h3>
+            <div class="columns-actions">
+              <button type="button" class="columns-btn" data-side="A" data-action="select">Tout sélectionner</button>
+              <button type="button" class="columns-btn" data-side="A" data-action="deselect">Tout désélectionner</button>
+            </div>
+          </div>
+          <div id="colsA" class="columns-group"></div>
+        </div>
+        <div>
+          <div class="key-select">
+            <span>Clé de jointure B :</span>
+            <select id="keySelectB"></select>
+          </div>
+          <div class="columns-header">
+            <h3>Colonnes à garder (B)</h3>
+            <div class="columns-actions">
+              <button type="button" class="columns-btn" data-side="B" data-action="select">Tout sélectionner</button>
+              <button type="button" class="columns-btn" data-side="B" data-action="deselect">Tout désélectionner</button>
+            </div>
+          </div>
+          <div id="colsB" class="columns-group"></div>
+        </div>
+      </div>
+      <div class="parse-controls">
+        <div class="parse-control">
+          <h3>A</h3>
+          <div id="parseWarningA" class="parse-warning"></div>
+          <button type="button" id="parseBtnA" disabled>Préparer A</button>
+          <div id="parseStatusA" class="parse-status"></div>
+        </div>
+        <div class="parse-control">
+          <h3>B</h3>
+          <div id="parseWarningB" class="parse-warning"></div>
+          <button type="button" id="parseBtnB" disabled>Préparer B</button>
+          <div id="parseStatusB" class="parse-status"></div>
+        </div>
       </div>
     </div>
 
@@ -507,29 +601,6 @@
       </div>
 
       <div class="stats-chart" id="statsChart" aria-hidden="true"></div>
-
-      <div class="columns-select">
-        <div>
-          <div class="columns-header">
-            <h3>Colonnes à garder (A)</h3>
-            <div class="columns-actions">
-              <button type="button" class="columns-btn" data-side="A" data-action="select">Tout sélectionner</button>
-              <button type="button" class="columns-btn" data-side="A" data-action="deselect">Tout désélectionner</button>
-            </div>
-          </div>
-          <div id="colsA" class="columns-group"></div>
-        </div>
-        <div>
-          <div class="columns-header">
-            <h3>Colonnes à garder (B)</h3>
-            <div class="columns-actions">
-              <button type="button" class="columns-btn" data-side="B" data-action="select">Tout sélectionner</button>
-              <button type="button" class="columns-btn" data-side="B" data-action="deselect">Tout désélectionner</button>
-            </div>
-          </div>
-          <div id="colsB" class="columns-group"></div>
-        </div>
-      </div>
 
       <div class="results-tabs" style="margin-top:0.6rem;">
         <button class="tab-btn" data-result="left">A \ B (left exclusive)</button>
@@ -573,9 +644,26 @@
 
   <script>
     // --------- État global ---------
+    const initialSideState = () => ({
+      headers: [],
+      previewRows: [],
+      rows: [],
+      filename: null,
+      file: null,
+      parsed: false,
+      parsing: false,
+      rowCount: 0,
+      parsedColumnsSignature: null,
+      lineCountEstimate: null,
+      lineCountKnown: false,
+      lineCountLoading: false,
+      largeFile: false,
+      lineCountRequestId: null,
+    });
+
     const state = {
-      A: { headers: [], rows: [], filename: null },
-      B: { headers: [], rows: [], filename: null },
+      A: initialSideState(),
+      B: initialSideState(),
       selectedColumnsA: new Set(),
       selectedColumnsB: new Set(),
       selectedKeyA: null,
@@ -593,10 +681,13 @@
       keylessB: [],
     };
 
+    const PREVIEW_CHUNK_SIZE = 1024 * 1024;
+    const AUTO_PARSE_ROW_THRESHOLD = 300000;
+
     function isReadyForCompute() {
-      const keyA = document.getElementById("keySelectA").value;
-      const keyB = document.getElementById("keySelectB").value;
-      return Boolean(state.A.rows.length && state.B.rows.length && keyA && keyB);
+      const keyA = state.selectedKeyA;
+      const keyB = state.selectedKeyB;
+      return Boolean(state.A.parsed && state.B.parsed && state.A.rows.length && state.B.rows.length && keyA && keyB);
     }
 
     function updateComputeButtonState() {
@@ -629,11 +720,67 @@
     }
 
     // --------- Parser CSV robuste (citations, virgules, retours ligne) ---------
-    function parseCSV(text, delimiter = ",") {
+    function parseCSV(text, delimiter = ",", options = {}) {
+      const {
+        maxRows = Infinity,
+        columnsFilter = null,
+        suppressErrors = false,
+      } = options;
+
       const rows = [];
+      let header = null;
+      let headerIndexMap = new Map();
       let currentRow = [];
       let currentValue = "";
       let inQuotes = false;
+      let badRowCount = 0;
+      let lineNumber = 1;
+      const filterSet = columnsFilter ? new Set(columnsFilter) : null;
+
+      const finalizeRow = () => {
+        currentRow.push(currentValue);
+        const rowLineNumber = lineNumber;
+        lineNumber++;
+        const isEmptyRow = currentRow.length === 1 && currentRow[0] === "";
+        currentValue = "";
+
+        if (!header) {
+          if (isEmptyRow) {
+            currentRow = [];
+            return false;
+          }
+          header = currentRow.slice();
+          headerIndexMap = new Map();
+          header.forEach((h, idx) => headerIndexMap.set(h, idx));
+          currentRow = [];
+          return false;
+        }
+
+        if (isEmptyRow) {
+          currentRow = [];
+          return false;
+        }
+
+        if (currentRow.length !== header.length && !suppressErrors) {
+          badRowCount++;
+          if (badRowCount <= 20) {
+            addError(
+              `Ligne ${rowLineNumber} : ${currentRow.length} colonnes, attendu ${header.length}. La ligne est conservée mais les colonnes en trop / manquantes seront ignorées.`
+            );
+          }
+        }
+
+        const obj = {};
+        const targetColumns = filterSet || header;
+        targetColumns.forEach(col => {
+          if (!headerIndexMap.has(col)) return;
+          const idx = headerIndexMap.get(col);
+          obj[col] = currentRow[idx] !== undefined ? currentRow[idx] : "";
+        });
+        rows.push(obj);
+        currentRow = [];
+        return rows.length >= maxRows;
+      };
 
       for (let i = 0; i < text.length; i++) {
         const c = text[i];
@@ -642,18 +789,15 @@
           if (inQuotes) {
             const next = text[i + 1];
             if (next === '"') {
-              // double quote -> échappée
               currentValue += '"';
-              i++; // skip next
+              i++;
             } else {
               inQuotes = false;
             }
           } else {
-            // début d'un champ cité
             if (currentValue === "") {
               inQuotes = true;
             } else {
-              // guillemet dans une valeur non-quoted
               currentValue += '"';
             }
           }
@@ -661,53 +805,112 @@
           currentRow.push(currentValue);
           currentValue = "";
         } else if ((c === "\n" || c === "\r") && !inQuotes) {
-          // fin de ligne
-          if (c === "\r" && text[i + 1] === "\n") i++; // CRLF
-          currentRow.push(currentValue);
-          currentValue = "";
-          // ignorer les lignes complètement vides en fin de fichier
-          if (currentRow.length > 1 || currentRow[0] !== "") {
-            rows.push(currentRow);
-          }
-          currentRow = [];
+          if (c === "\r" && text[i + 1] === "\n") i++;
+          const shouldStop = finalizeRow();
+          if (shouldStop) break;
         } else {
           currentValue += c;
         }
       }
-      // dernière valeur
-      if (currentValue !== "" || currentRow.length > 0) {
-        currentRow.push(currentValue);
-        rows.push(currentRow);
+
+      const hasPending = currentValue !== "" || currentRow.length > 0;
+      if (!header && currentRow.length === 0 && !hasPending) {
+        throw new Error("Fichier vide ou non lisible.");
+      }
+      if (hasPending) {
+        finalizeRow();
       }
 
-      if (rows.length === 0) {
+      if (!header) {
         throw new Error("Fichier vide ou non lisible.");
       }
 
-      const header = rows[0];
-      const dataRows = rows.slice(1);
-      const objects = [];
-      let badRowCount = 0;
+      return { header, rows };
+    }
 
-      for (let r = 0; r < dataRows.length; r++) {
-        const row = dataRows[r];
-        if (row.length !== header.length) {
-          badRowCount++;
-          if (badRowCount <= 20) {
-            addError(
-              `Ligne ${r + 2} : ${row.length} colonnes, attendu ${header.length}. La ligne est conservée mais les colonnes en trop / manquantes seront ignorées.`
-            );
+    function countLinesInText(text) {
+      if (!text) return 0;
+      let lineBreaks = 0;
+      let pendingCR = false;
+      let hasData = false;
+      let lastWasNewline = false;
+      for (let i = 0; i < text.length; i++) {
+        const ch = text[i];
+        hasData = true;
+        if (ch === "\r") {
+          lineBreaks++;
+          pendingCR = true;
+          lastWasNewline = true;
+        } else if (ch === "\n") {
+          if (pendingCR) {
+            pendingCR = false;
+          } else {
+            lineBreaks++;
+          }
+          lastWasNewline = true;
+        } else {
+          pendingCR = false;
+          lastWasNewline = false;
+        }
+      }
+      if (!hasData) return 0;
+      if (!lastWasNewline) {
+        lineBreaks++;
+      }
+      return lineBreaks;
+    }
+
+    async function countFileLines(file) {
+      if (!file) return 0;
+      if (!file.stream || typeof file.stream !== "function") {
+        const text = await file.text();
+        return countLinesInText(text);
+      }
+      const reader = file.stream().getReader();
+      const decoder = new TextDecoder();
+      let lineBreaks = 0;
+      let pendingCR = false;
+      let hasData = false;
+      let lastWasNewline = false;
+
+      const processChunk = (chunk) => {
+        if (!chunk) return;
+        for (let i = 0; i < chunk.length; i++) {
+          const ch = chunk[i];
+          hasData = true;
+          if (ch === "\r") {
+            lineBreaks++;
+            pendingCR = true;
+            lastWasNewline = true;
+          } else if (ch === "\n") {
+            if (pendingCR) {
+              pendingCR = false;
+            } else {
+              lineBreaks++;
+            }
+            lastWasNewline = true;
+          } else {
+            pendingCR = false;
+            lastWasNewline = false;
           }
         }
-        const obj = {};
-        for (let c = 0; c < header.length; c++) {
-          const key = header[c];
-          obj[key] = row[c] !== undefined ? row[c] : "";
-        }
-        objects.push(obj);
-      }
+      };
 
-      return { header, rows: objects };
+      while (true) {
+        const { value, done } = await reader.read();
+        if (value) {
+          processChunk(decoder.decode(value, { stream: !done }));
+        }
+        if (done) break;
+      }
+      const tail = decoder.decode();
+      if (tail) processChunk(tail);
+
+      if (!hasData) return 0;
+      if (!lastWasNewline) {
+        lineBreaks++;
+      }
+      return lineBreaks;
     }
 
     // --------- Construction du CSV pour export ---------
@@ -786,7 +989,7 @@
       select.value = fallback;
     }
 
-    function renderColumnsCheckboxes(containerId, headers, selectedSet) {
+    function renderColumnsCheckboxes(containerId, headers, selectedSet, side) {
       const container = document.getElementById(containerId);
       container.innerHTML = "";
       headers.forEach(h => {
@@ -799,7 +1002,7 @@
         input.addEventListener("change", () => {
           if (input.checked) selectedSet.add(h);
           else selectedSet.delete(h);
-          handleColumnsSelectionChange();
+          handleColumnsSelectionChange(side);
         });
         label.appendChild(input);
         const span = document.createElement("span");
@@ -811,6 +1014,16 @@
 
     function getSelectedColumnsSet(side) {
       return side === "A" ? state.selectedColumnsA : state.selectedColumnsB;
+    }
+
+    function getDisplayHeadersForSide(side) {
+      const selected = Array.from(getSelectedColumnsSet(side));
+      const key = side === "A" ? state.selectedKeyA : state.selectedKeyB;
+      if (key && !selected.includes(key)) {
+        return [key, ...selected];
+      }
+      if (selected.length) return selected;
+      return key ? [key] : [];
     }
 
     function getColumnsContainerId(side) {
@@ -827,7 +1040,7 @@
         state.selectedColumnsB = selectedSet;
         state.selectedKeyB = key;
       }
-      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet);
+      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet, side);
     }
 
     function updateColumnsSelectionForKeyChange(side, newKey, previousKey) {
@@ -843,7 +1056,7 @@
         selectedSet.add(newKey);
       }
 
-      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet);
+      renderColumnsCheckboxes(getColumnsContainerId(side), state[side].headers, selectedSet, side);
     }
 
     function handleKeySelectionChange(side) {
@@ -854,12 +1067,17 @@
       const previousKey = state[keyProp];
       state[keyProp] = newKey;
       updateColumnsSelectionForKeyChange(side, newKey, previousKey);
+      markDataStale(side);
+      refreshParseUI(side);
       updateComputeButtonState();
-      triggerAutoCompute();
+      maybeAutoPrepare(side);
     }
 
-    function handleColumnsSelectionChange() {
-      triggerAutoCompute();
+    function handleColumnsSelectionChange(side) {
+      markDataStale(side);
+      refreshParseUI(side);
+      updateComputeButtonState();
+      maybeAutoPrepare(side);
     }
 
     function handleColumnsBulk(side, action) {
@@ -871,8 +1089,170 @@
         headers.forEach(h => selectedSet.add(h));
       }
       const containerId = side === "A" ? "colsA" : "colsB";
-      renderColumnsCheckboxes(containerId, headers, selectedSet);
-      handleColumnsSelectionChange();
+      renderColumnsCheckboxes(containerId, headers, selectedSet, side);
+      handleColumnsSelectionChange(side);
+    }
+
+    function getSelectionSignature(side) {
+      const key = side === "A" ? state.selectedKeyA : state.selectedKeyB;
+      const selectedSet = getSelectedColumnsSet(side);
+      const sortedCols = Array.from(selectedSet).sort().join("|");
+      return `${key || ""}__${sortedCols}`;
+    }
+
+    function markDataStale(side) {
+      const sideState = state[side];
+      if (!sideState) return;
+      sideState.parsed = false;
+      sideState.parsing = false;
+      sideState.rows = [];
+      sideState.rowCount = 0;
+      sideState.parsedColumnsSignature = null;
+      if (side === "A") {
+        state.keylessA = [];
+      } else {
+        state.keylessB = [];
+      }
+      resetResultsUI();
+    }
+
+    function canParse(side) {
+      const sideState = state[side];
+      if (!sideState) return false;
+      const key = side === "A" ? state.selectedKeyA : state.selectedKeyB;
+      return Boolean(sideState.file && sideState.headers.length && key);
+    }
+
+    function refreshParseUI(side) {
+      const btn = document.getElementById("parseBtn" + side);
+      const statusEl = document.getElementById("parseStatus" + side);
+      const warningEl = document.getElementById("parseWarning" + side);
+      if (!btn || !statusEl || !warningEl) return;
+      const sideState = state[side];
+      const hasFile = Boolean(sideState.file);
+
+      warningEl.textContent = "";
+      const shouldHideButton = sideState.lineCountKnown && !sideState.largeFile;
+      btn.classList.toggle("hidden", shouldHideButton);
+
+      if (!hasFile) {
+        btn.disabled = true;
+        btn.textContent = "Préparer " + side;
+        statusEl.textContent = "Aucun fichier chargé.";
+        statusEl.classList.remove("parsing");
+        return;
+      }
+
+      if (!sideState.headers.length) {
+        btn.disabled = true;
+        btn.textContent = "Préparer " + side;
+        statusEl.textContent = "Lecture de l’en-tête…";
+        statusEl.classList.add("parsing");
+        return;
+      }
+
+      if (sideState.lineCountLoading) {
+        btn.disabled = true;
+        btn.textContent = "Préparer " + side;
+        statusEl.textContent = "Évaluation du volume du fichier…";
+        statusEl.classList.add("parsing");
+        return;
+      }
+
+      if (!canParse(side)) {
+        btn.disabled = true;
+        btn.textContent = "Préparer " + side;
+        statusEl.textContent = "Sélectionnez la clé de jointure.";
+        statusEl.classList.remove("parsing");
+        return;
+      }
+
+      if (sideState.largeFile && sideState.lineCountKnown) {
+        warningEl.textContent = "Grand fichier détecté, lancer la préparation du fichier manuellement.";
+      }
+
+      if (sideState.parsing) {
+        btn.disabled = true;
+        btn.textContent = "Préparation en cours…";
+        statusEl.textContent = "Préparation en cours…";
+        statusEl.classList.add("parsing");
+        return;
+      }
+
+      statusEl.classList.remove("parsing");
+      const matchesSelection = sideState.parsed && sideState.parsedColumnsSignature === getSelectionSignature(side);
+      if (matchesSelection) {
+        btn.disabled = false;
+        btn.textContent = "Relancer la préparation de " + side;
+        statusEl.textContent = `${sideState.rowCount} ligne(s) préparée(s).`;
+      } else {
+        btn.disabled = false;
+        btn.textContent = "Préparer " + side;
+        if (sideState.lineCountKnown && sideState.lineCountEstimate != null) {
+          const formatted = sideState.lineCountEstimate.toLocaleString("fr-FR");
+          statusEl.textContent = `${formatted} ligne(s) détectées. Prêt pour la préparation.`;
+        } else {
+          statusEl.textContent = "Prêt pour la préparation.";
+        }
+      }
+    }
+
+    function resetResultsUI() {
+      state.results.inner = { headers: [], rows: [] };
+      state.results.left = { headers: [], rows: [] };
+      state.results.right = { headers: [], rows: [] };
+      state.keylessA = [];
+      state.keylessB = [];
+      const chart = document.getElementById("statsChart");
+      if (chart) chart.innerHTML = "";
+      renderResultTable();
+      renderDebugTables();
+    }
+
+    async function evaluateFileSizeAndAutoPrepare(side) {
+      const sideState = state[side];
+      if (!sideState || !sideState.file) return;
+      const token = Symbol();
+      sideState.lineCountRequestId = token;
+      sideState.lineCountKnown = false;
+      sideState.lineCountEstimate = null;
+      sideState.largeFile = false;
+      sideState.lineCountLoading = true;
+      refreshParseUI(side);
+      const isCurrent = () => state[side] === sideState && sideState.lineCountRequestId === token;
+      try {
+        const totalLines = await countFileLines(sideState.file);
+        if (!isCurrent()) return;
+        const dataRows = Math.max(0, totalLines - 1);
+        sideState.lineCountEstimate = dataRows;
+        sideState.lineCountKnown = true;
+        sideState.largeFile = dataRows >= AUTO_PARSE_ROW_THRESHOLD;
+      } catch (err) {
+        console.error("Impossible d'évaluer la taille du fichier", err);
+        if (!isCurrent()) return;
+        sideState.lineCountEstimate = null;
+        sideState.lineCountKnown = false;
+        sideState.largeFile = false;
+      } finally {
+        if (!isCurrent()) return;
+        sideState.lineCountLoading = false;
+        sideState.lineCountRequestId = null;
+        refreshParseUI(side);
+        if (sideState.lineCountKnown && !sideState.largeFile) {
+          maybeAutoPrepare(side);
+        }
+      }
+    }
+
+    function maybeAutoPrepare(side) {
+      const sideState = state[side];
+      if (!sideState) return;
+      if (!sideState.lineCountKnown || sideState.largeFile) return;
+      if (!canParse(side)) return;
+      if (sideState.parsing) return;
+      const signature = getSelectionSignature(side);
+      if (sideState.parsed && sideState.parsedColumnsSignature === signature) return;
+      parseFullFile(side);
     }
 
     function renderDebugTables() {
@@ -900,8 +1280,8 @@
         renderPreview(tableEl.id, headers, keylessRows, Math.min(keylessRows.length, 50));
       };
 
-      updatePanel(infoA, tableA, state.keylessA, state.A.headers);
-      updatePanel(infoB, tableB, state.keylessB, state.B.headers);
+      updatePanel(infoA, tableA, state.keylessA, getDisplayHeadersForSide("A"));
+      updatePanel(infoB, tableB, state.keylessB, getDisplayHeadersForSide("B"));
     }
 
     function renderStatsChart({ totalA, totalB, both, onlyA, onlyB }) {
@@ -953,7 +1333,7 @@
 
       const info = document.getElementById("resultInfo");
       if (!res.headers.length) {
-        info.textContent = "Aucun résultat pour l’instant. Il est possible qu'aucune colonne de soit sélectionnée pour ce fichier ».";
+        info.textContent = "Aucun résultat pour le moment. Sélectionnez les colonnes utiles et préparez les deux fichiers pour afficher un comparatif.";
         document.getElementById("downloadBtn").disabled = true;
         return;
       }
@@ -975,44 +1355,100 @@
     function handleFile(file, side) {
       clearErrors();
       if (!file) return;
+      const freshState = initialSideState();
+      freshState.filename = file.name;
+      freshState.file = file;
+      state[side] = freshState;
+      resetResultsUI();
+      refreshParseUI(side);
+      evaluateFileSizeAndAutoPrepare(side);
       const reader = new FileReader();
+      const slice = file.slice(0, Math.min(file.size, PREVIEW_CHUNK_SIZE));
       reader.onload = (e) => {
         try {
           const text = e.target.result;
-          const parsed = parseCSV(text, ",");
+          const parsed = parseCSV(text, ",", { maxRows: 10, suppressErrors: true });
           state[side].headers = parsed.header;
-          state[side].rows = parsed.rows;
-          state[side].filename = file.name;
-
+          state[side].previewRows = parsed.rows;
           document.getElementById("fileInfo" + side).textContent =
-            `${file.name} – ${parsed.rows.length} lignes (hors en-tête)`;
-
+            `${file.name} – aperçu chargé, en attente de la préparation complète`;
           renderPreview("preview" + side, parsed.header, parsed.rows);
           renderKeySelect("keySelect" + side, parsed.header);
           const selectedKey = document.getElementById("keySelect" + side).value;
           setColumnsSelectionToKeyOnly(side, selectedKey);
-
+          refreshParseUI(side);
           updateComputeButtonState();
-          triggerAutoCompute();
+          maybeAutoPrepare(side);
         } catch (err) {
-          addError("Erreur lors du parsing de " + file.name + " : " + err.message);
+          addError("Erreur lors de la lecture de " + file.name + " : " + err.message);
         }
       };
       reader.onerror = () => {
         addError("Impossible de lire le fichier : " + file.name);
       };
-      reader.readAsText(file);
+      reader.readAsText(slice);
+    }
+
+    function parseFullFile(side) {
+      clearErrors();
+      const sideState = state[side];
+      if (!sideState.file) {
+        addError(`Aucun fichier ${side} chargé.`);
+        return;
+      }
+      const key = side === "A" ? state.selectedKeyA : state.selectedKeyB;
+      if (!key) {
+        addError(`Veuillez choisir une clé de jointure pour ${side}.`);
+        return;
+      }
+      const selectedSet = new Set(getSelectedColumnsSet(side));
+      selectedSet.add(key);
+      sideState.parsing = true;
+      sideState.parsed = false;
+      refreshParseUI(side);
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        try {
+          const text = e.target.result;
+          const parsed = parseCSV(text, ",", { columnsFilter: selectedSet });
+          sideState.rows = parsed.rows;
+          sideState.rowCount = parsed.rows.length;
+          sideState.parsed = true;
+          sideState.parsing = false;
+          sideState.parsedColumnsSignature = getSelectionSignature(side);
+          document.getElementById("fileInfo" + side).textContent =
+            `${sideState.filename || `Fichier ${side}`} – ${sideState.rowCount} lignes (hors en-tête)`;
+          refreshParseUI(side);
+          updateComputeButtonState();
+          triggerAutoCompute();
+        } catch (err) {
+          sideState.parsing = false;
+          refreshParseUI(side);
+          addError("Erreur lors du parsing de " + (sideState.filename || `fichier ${side}`) + " : " + err.message);
+        }
+      };
+      reader.onerror = () => {
+        sideState.parsing = false;
+        refreshParseUI(side);
+        addError("Impossible de lire le fichier : " + (sideState.filename || `fichier ${side}`));
+      };
+      reader.readAsText(sideState.file);
     }
 
     // --------- Calcul des stats & résultats ---------
     function compute() {
       clearErrors();
-      const keyA = document.getElementById("keySelectA").value;
-      const keyB = document.getElementById("keySelectB").value;
+      const keyA = state.selectedKeyA;
+      const keyB = state.selectedKeyB;
       const lowercase = document.getElementById("lowercaseOption").checked;
 
       if (!keyA || !keyB) {
         addError("Veuillez choisir une clé de jointure pour A et B.");
+        return;
+      }
+      if (!state.A.parsed || !state.B.parsed) {
+        addError("Veuillez préparer les deux fichiers avant de lancer le calcul.");
         return;
       }
 
@@ -1259,6 +1695,8 @@
           handleColumnsBulk(side, action);
         });
       });
+      document.getElementById("parseBtnA").addEventListener("click", () => parseFullFile("A"));
+      document.getElementById("parseBtnB").addEventListener("click", () => parseFullFile("B"));
       document.getElementById("debugToggle").addEventListener("change", (e) => {
         state.debugEnabled = e.target.checked;
         renderDebugTables();
@@ -1267,7 +1705,9 @@
       document.getElementById("computeBtn").addEventListener("click", compute);
       document.getElementById("downloadBtn").addEventListener("click", downloadActiveResult);
       updateComputeButtonState();
-      renderDebugTables();
+      refreshParseUI("A");
+      refreshParseUI("B");
+      resetResultsUI();
     }
 
     document.addEventListener("DOMContentLoaded", init);
